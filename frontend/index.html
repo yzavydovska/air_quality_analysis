@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jakość Powietrza</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      max-width: 800px;
+      margin-top: 20px;
+      background: white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #2980b9;
+      color: white;
+      font-weight: bold;
+    }
+    tr:nth-child(even) {
+      background-color: #f2f6fc;
+    }
+    tr:hover {
+      background-color: #d6e9ff;
+    }
+    select, button {
+      padding: 8px 12px;
+      font-size: 1rem;
+      margin-top: 10px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    button {
+      cursor: pointer;
+      background-color: #2980b9;
+      color: white;
+      border: none;
+      margin-right: 10px;
+    }
+    button:hover {
+      background-color: #1c5980;
+    }
+    #buttonContainer {
+      margin-top: 15px;
+    }
+    .low { background-color: #d4edda; }
+    .medium { background-color: #fff3cd; }
+    .high { background-color: #f8d7da; }
+    canvas {
+      max-width: 800px;
+      margin-top: 30px;
+      background: white;
+      border: 1px solid #ddd;
+      padding: 10px;
+    }
+
+
+   #wynikPrognozy {
+    margin-top: 15px;
+    padding: 15px 20px;
+    background: #e8f4fd;
+    border: 1px solid #2980b9;
+    border-radius: 8px;
+    max-width: 400px;       /* ograniczona szerokość */
+    word-wrap: break-word;  /* łamanie długich wyrazów */
+    white-space: normal;    /* normalne zawijanie linii */
+    font-size: 1.2rem;
+    color: #1c5980;
+  }
+  #wynikPrognozy.error {
+    background: #f8d7da;
+    border-color: #c0392b;
+    color: #c0392b;
+  }
+
+  #prognozaContainer {
+    max-width: 420px;
+  }
+
+  /* Dodatkowo, dla mniejszych ekranów */
+  @media (max-width: 480px) {
+    #wynikPrognozy, #prognozaContainer {
+      max-width: 100%;
+      font-size: 1rem;
+      padding: 12px 15px;
+    }
+  }
+</style>
+
+
+</head>
+<body>
+
+  <h1>Dane o jakości powietrza</h1>
+
+  <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+    <label>
+      Miasto:
+      <select id="miastaSelect"></select>
+    </label>
+
+    <label>
+      Miesiąc:
+      <select id="miesiacSelect">
+        <option value="">-- wszystkie --</option>
+        <option value="03">Marzec</option>
+        <option value="04">Kwiecień</option>
+        <option value="05">Maj</option>
+      </select>
+    </label>
+
+    <button onclick="pobierzDane()">Pokaż dane</button>
+  </div>
+
+  <div id="tabelaContainer"></div>
+
+  <div id="buttonContainer" style="display:none;">
+    <button onclick="pobierzCSVWidocznych()">Pobierz CSV (bieżąca strona)</button>
+    <button onclick="pobierzCSVWszystkich()">Pobierz CSV (wszystkie dane miasta)</button>
+  </div>
+
+  <h2 style="margin-top: 30px;">Wykres jakości powietrza</h2>
+  <canvas id="wykresCanvas"></canvas>
+
+  <h2>Prognoza jakości powietrza na dziś</h2>
+  
+<div id="prognozaContainer" style="margin-bottom: 30px; font-size: 1.1rem;">
+  <label style="display: block; margin-bottom: 8px;">
+  Miasto (prognoza):
+  <select id="miastoPrognozaSelect" style="width: 100%; max-width: 300px; margin-top: 5px;"></select>
+</label>
+
+<label style="display: block; margin: 10px 0;">
+  Dzień:
+  <select id="dzienPrognozaSelect" style="width: 100%; max-width: 300px;">
+    <option value="today">Dzisiaj</option>
+    <option value="tomorrow">Jutro</option>
+  </select>
+</label>
+
+<button onclick="pobierzPrognoze()">Pokaż prognozę</button>
+
+  <div id="wynikPrognozy">Wybierz miasto i kliknij "Pokaż prognozę".</div>
+</div>
+
+
+  <script>
+    function formatDate(dateStr) {
+      const months = [
+        'stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca',
+        'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia'
+      ];
+      const d = new Date(dateStr);
+      if (isNaN(d)) return dateStr; // fallback
+      return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    // Zamienia "bielsko-biala" -> "Bielsko Biała" (czytelniej)
+    function formatCityName(city) {
+      if (!city) return '';
+      return city
+        .split(/[-_]/)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+    }
+
+    // Załaduj listę miast do obu selectów
+    async function zaladujMiasta() {
+      try {
+        const res = await fetch('/api/miasta');
+        const miasta = await res.json();
+        const miastaSelect = document.getElementById('miastaSelect');
+        const miastoPrognozaSelect = document.getElementById('miastoPrognozaSelect');
+
+        miastaSelect.innerHTML = '<option value="">-- wybierz --</option>';
+        miastoPrognozaSelect.innerHTML = '<option value="">-- wybierz --</option>';
+
+        miasta.forEach(city => {
+          const opt1 = document.createElement('option');
+          opt1.value = city;
+          opt1.textContent = formatCityName(city);
+          miastaSelect.appendChild(opt1);
+
+          const opt2 = document.createElement('option');
+          opt2.value = city;
+          opt2.textContent = formatCityName(city);
+          miastoPrognozaSelect.appendChild(opt2);
+        });
+      } catch (error) {
+        console.error('Błąd ładowania miast:', error);
+      }
+    }
+
+    // Wyświetl prognozę w bloku
+    function pokazPrognoze(dane) {
+      const kontener = document.getElementById('wynikPrognozy');
+      if (dane.error) {
+        kontener.textContent = dane.error;
+        kontener.classList.add('error');
+        return;
+      }
+      kontener.classList.remove('error');
+      kontener.innerHTML = `
+        <p><strong>Miasto:</strong> ${formatCityName(dane.miasto)}</p>
+        <p><strong>Data prognozy:</strong> ${formatDate(dane.data)}</p>
+        <p><strong>PM10:</strong> ${dane.prognoza_pm10} μg/m³</p>
+        <p><strong>PM2.5:</strong> ${dane.prognoza_pm25} μg/m³</p>
+      `;
+    }
+
+    // Funkcja do pobrania i wyświetlenia prognozy
+    async function pobierzPrognoze() {
+      const select = document.getElementById('miastoPrognozaSelect');
+      const miasto = select.value;
+      const kontener = document.getElementById('wynikPrognozy');
+
+      if (!miasto) {
+        kontener.textContent = 'Proszę wybrać miasto.';
+        kontener.classList.add('error');
+        return;
+      }
+
+      kontener.textContent = 'Ładowanie prognozy...';
+      kontener.classList.remove('error');
+
+      try {
+        const response = await fetch(`/api/prognoza?miasto=${encodeURIComponent(miasto)}`);
+        const dane = await response.json();
+        pokazPrognoze(dane);
+      } catch (err) {
+        kontener.textContent = 'Błąd podczas pobierania prognozy.';
+        kontener.classList.add('error');
+        console.error(err);
+      }
+    }
+
+    // Po załadowaniu strony ładujemy miasta
+    window.addEventListener('DOMContentLoaded', zaladujMiasta);
+  </script>
+
+  <script src="app.js"></script>
+</body>
+</html>
