@@ -51,13 +51,16 @@ pip install -r requirements.txt
 
 ---
 
-## 🚀 Uruchomienie projektu
+##  Uruchomienie projektu
 
 
 1. **Uruchomienie aplikacji:**
 
 cd backend
+
 python app.py
+
+ Uwaga: Backend należy uruchamiać z poziomu katalogu backend, ponieważ ścieżki do bazy danych i modeli są względne względem tej lokalizacji.
 
 2. **Otworzenie interfejsu frontendowego:**
 
