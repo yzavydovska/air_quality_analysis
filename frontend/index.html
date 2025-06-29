@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Jakość Powietrza</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -15,10 +16,9 @@
     h1 {
       color: #2c3e50;
     }
-    table {
+   table {
       border-collapse: collapse;
       width: 100%;
-      max-width: 800px;
       margin-top: 20px;
       background: white;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -63,44 +63,48 @@
     .medium { background-color: #fff3cd; }
     .high { background-color: #f8d7da; }
     canvas {
-      max-width: 800px;
       margin-top: 30px;
       background: white;
       border: 1px solid #ddd;
       padding: 10px;
+      display: block;
+    }
+    #wynikPrognozy {
+      margin-top: 15px;
+      padding: 15px 20px;
+      background: #e8f4fd;
+      border: 1px solid #2980b9;
+      border-radius: 8px;
+      max-width: 400px;       
+      word-wrap: break-word;  
+      white-space: normal;    
+      font-size: 1.2rem;
+      color: #1c5980;
+    }
+    #wynikPrognozy.error {
+      background: #f8d7da;
+      border-color: #c0392b;
+      color: #c0392b;
+    }
+    #prognozaContainer {
+      max-width: 420px;
+    }
+    @media (max-width: 480px) {
+      #wynikPrognozy, #prognozaContainer {
+        max-width: 100%;
+        font-size: 1rem;
+        padding: 12px 15px;
+      }
     }
 
-
-   #wynikPrognozy {
-    margin-top: 15px;
-    padding: 15px 20px;
-    background: #e8f4fd;
-    border: 1px solid #2980b9;
-    border-radius: 8px;
-    max-width: 400px;       /* ograniczona szerokość */
-    word-wrap: break-word;  /* łamanie długich wyrazów */
-    white-space: normal;    /* normalne zawijanie linii */
-    font-size: 1.2rem;
-    color: #1c5980;
-  }
-  #wynikPrognozy.error {
-    background: #f8d7da;
-    border-color: #c0392b;
-    color: #c0392b;
-  }
-
-  #prognozaContainer {
-    max-width: 420px;
-  }
-
-  /* Dodatkowo, dla mniejszych ekranów */
-  @media (max-width: 480px) {
-    #wynikPrognozy, #prognozaContainer {
-      max-width: 100%;
-      font-size: 1rem;
-      padding: 12px 15px;
+    #tabelaContainer, #wykresContainer {
+      margin-top: 20px;
+      background: white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 10px;
+      border: 1px solid #ddd;
     }
-  }
+  
 </style>
 
 
@@ -119,9 +123,12 @@
       Miesiąc:
       <select id="miesiacSelect">
         <option value="">-- wszystkie --</option>
+        <option value="01">Styczen</option>
+        <option value="02">Luty</option>
         <option value="03">Marzec</option>
         <option value="04">Kwiecień</option>
         <option value="05">Maj</option>
+        <option value="06">Czerwiec</option>
       </select>
     </label>
 
@@ -167,11 +174,10 @@
         'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia'
       ];
       const d = new Date(dateStr);
-      if (isNaN(d)) return dateStr; // fallback
+      if (isNaN(d)) return dateStr; 
       return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
     }
 
-    // Zamienia "bielsko-biala" -> "Bielsko Biała" (czytelniej)
     function formatCityName(city) {
       if (!city) return '';
       return city
@@ -180,7 +186,6 @@
         .join(' ');
     }
 
-    // Załaduj listę miast do obu selectów
     async function zaladujMiasta() {
       try {
         const res = await fetch('/api/miasta');
@@ -250,7 +255,6 @@
       }
     }
 
-    // Po załadowaniu strony ładujemy miasta
     window.addEventListener('DOMContentLoaded', zaladujMiasta);
   </script>
 

@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 import joblib
 import re
-
+#trenuje modele ML na podstawie danych historycznych i zapisuje je do katalogu models
 DB_PATH = '../scripts/dane_zanieczyszczenia.db'
 MODELS_PATH = '../models'
 
@@ -35,7 +35,6 @@ def train_and_save_model(city):
         print(f"Brak danych dla miasta {city}")
         return
 
-    # Zamień puste lub niepoprawne ciągi na NaN i usuń je
     df['pm25'] = pd.to_numeric(df['pm25'], errors='coerce')
     df['pm10'] = pd.to_numeric(df['pm10'], errors='coerce')
     df = df.dropna(subset=['pm25', 'pm10'])

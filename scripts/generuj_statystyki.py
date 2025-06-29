@@ -79,7 +79,6 @@ def main():
     kolumny = ['miasto', 'pm25_mean', 'pm25_max', 'pm25_min', 'pm10_mean', 'pm10_max', 'pm10_min']
     df_wyniki = df_wyniki[kolumny]
 
-    # Ścieżka do folderu wyniki w głównym folderze projektu
     folder_wyniki = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'wyniki'))
     os.makedirs(folder_wyniki, exist_ok=True)
 

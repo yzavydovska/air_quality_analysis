@@ -117,10 +117,69 @@ function pobierzCSVWszystkich() {
     .catch(() => alert('❌ Błąd pobierania wszystkich danych.'));
 }
 
+
 function generujWykres(dane) {
-  const labels = dane.map(r => r.data);
-  const pm25 = dane.map(r => r.pm25);
-  const pm10 = dane.map(r => r.pm10);
+  if (!dane.length) return;
+
+  // Funkcja pomocnicza do formatowania daty (bez godziny)
+  function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    return d.toISOString().slice(0, 10); 
+  }
+
+  // Grupowanie danych po dniu i części dnia (przedpołudnie/popołudnie)
+  const grupy = {};
+
+  dane.forEach(r => {
+    const dt = new Date(r.data);
+    const dzien = dt.toISOString().slice(0, 10);
+    const godzina = dt.getHours();
+
+    const polDnia = godzina < 12 ? 0 : 1;
+
+    if (!grupy[dzien]) grupy[dzien] = { 0: [], 1: [] };
+    grupy[dzien][polDnia].push(r);
+  });
+
+  const dni = Object.keys(grupy);
+  const liczbaDni = dni.length;
+
+  let labels = [];
+  let pm25 = [];
+  let pm10 = [];
+
+  if (liczbaDni < 60) {
+    // Mniej niż 60 dni - agregujemy max 2 punkty na dzień (przedpołudnie i popołudnie)
+    dni.forEach(dzien => {
+      ['0', '1'].forEach(pol => {
+        const pomiary = grupy[dzien][pol];
+        if (pomiary.length) {
+          // Średnia pm25 i pm10 z tej części dnia
+          const avgPm25 = pomiary.reduce((sum, p) => sum + (p.pm25 || 0), 0) / pomiary.length;
+          const avgPm10 = pomiary.reduce((sum, p) => sum + (p.pm10 || 0), 0) / pomiary.length;
+
+          const label = pol === '0' ? `${dzien} przedpołudnie` : `${dzien} popołudnie`;
+
+          labels.push(label);
+          pm25.push(+avgPm25.toFixed(1));
+          pm10.push(+avgPm10.toFixed(1));
+        }
+      });
+    });
+  } else {
+    // 60 dni lub więcej - agregujemy 1 punkt dziennie (średnia całodzienne)
+    dni.forEach(dzien => {
+      const wszystkiePomiary = [...grupy[dzien][0], ...grupy[dzien][1]];
+      if (wszystkiePomiary.length) {
+        const avgPm25 = wszystkiePomiary.reduce((sum, p) => sum + (p.pm25 || 0), 0) / wszystkiePomiary.length;
+        const avgPm10 = wszystkiePomiary.reduce((sum, p) => sum + (p.pm10 || 0), 0) / wszystkiePomiary.length;
+
+        labels.push(dzien);
+        pm25.push(+avgPm25.toFixed(1));
+        pm10.push(+avgPm10.toFixed(1));
+      }
+    });
+  }
 
   const ctx = document.getElementById('wykresCanvas').getContext('2d');
   if (window.wykresInstance) window.wykresInstance.destroy();
@@ -138,6 +197,8 @@ function generujWykres(dane) {
           pointRadius: 3,
           pointHoverRadius: 6,
           tension: 0.3,
+              spanGaps: true 
+
         },
         {
           label: 'PM10 (μg/m³)',
@@ -147,6 +208,8 @@ function generujWykres(dane) {
           pointRadius: 3,
           pointHoverRadius: 6,
           tension: 0.3,
+              spanGaps: true  
+
         }
       ]
     },
@@ -157,7 +220,7 @@ function generujWykres(dane) {
           display: true,
           text: 'Wykres stężenia pyłów PM2.5 i PM10 w czasie',
           font: {
-            size: 18,
+            size: 20,
             family: 'Arial',
             weight: 'bold'
           },
@@ -170,7 +233,7 @@ function generujWykres(dane) {
           position: 'top',
           labels: {
             font: {
-              size: 14
+              size: 16
             }
           }
         },
@@ -187,13 +250,14 @@ function generujWykres(dane) {
           beginAtZero: true,
           title: {
             display: true,
-            text: 'Stężenie (μg/m³)'
+            text: 'Stężenie (μg/m³)',
           }
         },
         x: {
           title: {
             display: true,
-            text: 'Data'
+            text: 'Data',
+            size:14
           }
         }
       },
@@ -247,7 +311,6 @@ function pokazPrognoze(dane) {
     return `${pm} μg/m³ (niezdrowy poziom)`;
   }
 
-  // Zamiana "bydgoszcz" na "Bydgoszcz" itd.
   const miastoFormatted = dane.miasto
     .split('-')
     .map(s => s.charAt(0).toUpperCase() + s.slice(1))
